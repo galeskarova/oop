@@ -1,6 +1,6 @@
 import pytest
 
-from src.models import Category, Product
+from src.models import Category, CategoryIterator, Product
 
 
 @pytest.fixture(autouse=True)
