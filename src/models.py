@@ -1,117 +1,151 @@
-class Product:
-    """
-    Класс товара.
-    """
+from typing import Dict, List, Union
 
-    def __init__(self, name: str, description: str, price: float, quantity: int):
+
+class Product:
+    """Базовый класс для всех продуктов."""
+
+    name: str
+    description: str
+    __price: float
+    quantity: int
+
+    def __init__(
+        self, name: str, description: str, price: float, quantity: int
+    ) -> None:
         self.name = name
         self.description = description
-        self.__price = price  # приватный атрибут
+        self.__price = price
         self.quantity = quantity
 
     @property
     def price(self) -> float:
+        """Геттер для приватного атрибута цены."""
         return self.__price
 
     @price.setter
-    def price(self, value: float):
-        if value <= 0:
+    def price(self, new_price: float) -> None:
+        """Сеттер для цены с проверкой на положительное значение."""
+        if new_price <= 0:
             print("Цена не должна быть нулевая или отрицательная")
         else:
-            self.__price = value
+            if new_price < self.__price:
+                answer = input(
+                    f"Вы действительно хотите понизить цену с {self.__price} до {new_price}? (y/n): "
+                )
+                if answer.lower() == "y":
+                    self.__price = new_price
+            else:
+                self.__price = new_price
 
     @classmethod
-    def new_product(cls, data: dict, existing_products: list = None):
+    def new_product(
+        cls,
+        product_data: Dict[str, Union[str, float, int]],
+        existing_products: List["Product"] = None,
+    ) -> "Product":
         """
-        Создаёт продукт из словаря.
-        Если existing_products передан и в нём есть продукт с таким же именем,
-        то увеличивает количество и выбирает максимальную цену.
-        Возвращает объект Product (новый или обновлённый).
+        Класс-метод для создания нового продукта из словаря.
+        Если передан список существующих продуктов, то ищет товар с таким же именем:
+        - увеличивает количество,
+        - выбирает максимальную цену.
         """
-        name = data["name"]
-        description = data["description"]
-        price = data["price"]
-        quantity = data["quantity"]
+        name = product_data["name"]
+        description = product_data.get("description", "")
+        price = float(product_data["price"])
+        quantity = int(product_data["quantity"])
 
         if existing_products:
-            for prod in existing_products:
-                if prod.name == name:
-                    # Обновляем количество и цену (максимальную)
-                    prod.quantity += quantity
-                    if price > prod.price:
-                        prod.price = price
-                    return prod
+            for product in existing_products:
+                if product.name == name:
+                    product.quantity += quantity
+                    if price > product.price:
+                        product.price = price
+                    return product
 
-        # Если не нашли дубликат или existing_products не передан
         return cls(name, description, price, quantity)
 
-    def __str__(self) -> str:
-        return f"{self.name}, {self.price} руб. Остаток: {self.quantity} шт."
-
     def __add__(self, other: "Product") -> float:
-        if not isinstance(other, Product):
-            raise TypeError("Складывать можно только объекты класса Product")
+        """
+        Сложение двух продуктов одного класса.
+        Возвращает сумму произведений цены на количество.
+        Если типы не совпадают, выбрасывается TypeError.
+        """
+        if type(self) is not type(other):
+            raise TypeError("Нельзя складывать товары разных классов")
         return self.price * self.quantity + other.price * other.quantity
 
 
+class Smartphone(Product):
+    """Класс для смартфонов, наследник Product."""
+
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        price: float,
+        quantity: int,
+        efficiency: float,
+        model: str,
+        memory: int,
+        color: str,
+    ) -> None:
+        super().__init__(name, description, price, quantity)
+        self.efficiency = efficiency
+        self.model = model
+        self.memory = memory
+        self.color = color
+
+
+class LawnGrass(Product):
+    """Класс для газонной травы, наследник Product."""
+
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        price: float,
+        quantity: int,
+        country: str,
+        germination_period: str,
+        color: str,
+    ) -> None:
+        super().__init__(name, description, price, quantity)
+        self.country = country
+        self.germination_period = germination_period
+        self.color = color
+
+
 class Category:
-    """
-    Класс категории товаров.
-    """
+    """Класс для представления категории товаров."""
 
-    category_count = 0
-    product_count = 0
+    name: str
+    description: str
+    __products: List[Product]
 
-    def __init__(self, name: str, description: str, products: list[Product]):
+    category_count: int = 0
+    product_count: int = 0
+
+    def __init__(self, name: str, description: str, products: List[Product]) -> None:
         self.name = name
         self.description = description
         self.__products = products
 
-        # Увеличиваем общее количество категорий
         Category.category_count += 1
-        # Увеличиваем общее количество товаров на количество продуктов в категории
         Category.product_count += len(products)
 
-    @property
-    def products(self) -> str:
-        """
-        Возвращает строковое представление всех товаров в категории,
-        каждый на новой строке. В конце добавляется перевод строки,
-        если список не пуст.
-        """
-        if not self.__products:
-            return ""
-        return "\n".join(str(p) for p in self.__products) + "\n"
-
-    def add_product(self, product: Product):
-        """Добавляет товар в категорию и увеличивает общий счётчик товаров."""
+    def add_product(self, product: Product) -> None:
+        """Добавляет продукт в категорию. Разрешены только экземпляры Product и его наследников."""
+        if not isinstance(product, Product):
+            raise TypeError(
+                "В категорию можно добавлять только продукты (Product или его наследники)"
+            )
         self.__products.append(product)
         Category.product_count += 1
 
-    def __str__(self) -> str:
-        total_quantity = sum(p.quantity for p in self.__products)
-        return f"{self.name}, количество продуктов: {total_quantity} шт."
-
-    def __iter__(self):
-        return CategoryIterator(self)
-
-
-class CategoryIterator:
-    """
-    Итератор для перебора товаров категории.
-    """
-
-    def __init__(self, category: Category):
-        self._category = category
-        self._index = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self) -> Product:
-        products = self._category._Category__products
-        if self._index < len(products):
-            product = products[self._index]
-            self._index += 1
-            return product
-        raise StopIteration
+    @property
+    def products(self) -> str:
+        """Геттер, возвращающий строковое представление списка товаров."""
+        result = ""
+        for product in self.__products:
+            result += f"{product.name}, {product.price} руб. Остаток: {product.quantity} шт.\n"
+        return result
