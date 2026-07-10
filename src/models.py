@@ -1,8 +1,37 @@
+from abc import ABC, abstractmethod
 from typing import Dict, List, Union
 
 
-class Product:
-    """Базовый класс для всех продуктов."""
+class BaseProduct(ABC):
+    """Абстрактный базовый класс для всех продуктов."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        """Принимает любые аргументы и завершает цепочку инициализации."""
+        super().__init__()
+
+    @abstractmethod
+    def get_info(self) -> str:
+        """Возвращает информационную строку о продукте."""
+        pass
+
+
+class ObjectCreationMixin:
+    """Миксин, выводящий информацию о создании объекта."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        # Сохраняем параметры для последующей печати
+        self._creation_args = args
+        self._creation_kwargs = kwargs
+        super().__init__(*args, **kwargs)
+        # Печатаем информацию о созданном объекте
+        print(
+            f"Создан объект класса {self.__class__.__name__} "
+            f"с параметрами: {args}, {kwargs}"
+        )
+
+
+class Product(ObjectCreationMixin, BaseProduct):
+    """Класс для представления товара."""
 
     name: str
     description: str
@@ -12,6 +41,8 @@ class Product:
     def __init__(
         self, name: str, description: str, price: float, quantity: int
     ) -> None:
+        # Вызов цепочки конструкторов через super (попадаем в миксин)
+        super().__init__(name, description, price, quantity)
         self.name = name
         self.description = description
         self.__price = price
@@ -30,12 +61,20 @@ class Product:
         else:
             if new_price < self.__price:
                 answer = input(
-                    f"Вы действительно хотите понизить цену с {self.__price} до {new_price}? (y/n): "
+                    f"Вы действительно хотите понизить цену "
+                    f"с {self.__price} до {new_price}? (y/n): "
                 )
                 if answer.lower() == "y":
                     self.__price = new_price
             else:
                 self.__price = new_price
+
+    def get_info(self) -> str:
+        """Реализация абстрактного метода."""
+        return (
+            f"Продукт: {self.name}, {self.description}, "
+            f"Цена: {self.price} руб., Остаток: {self.quantity} шт."
+        )
 
     @classmethod
     def new_product(
@@ -44,10 +83,9 @@ class Product:
         existing_products: List["Product"] = None,
     ) -> "Product":
         """
-        Класс-метод для создания нового продукта из словаря.
-        Если передан список существующих продуктов, то ищет товар с таким же именем:
-        - увеличивает количество,
-        - выбирает максимальную цену.
+        Класс-метод для создания продукта из словаря.
+        При наличии дубликата по имени увеличивает количество и
+        выбирает максимальную цену.
         """
         name = product_data["name"]
         description = product_data.get("description", "")
@@ -66,7 +104,7 @@ class Product:
 
     def __add__(self, other: "Product") -> float:
         """
-        Сложение двух продуктов одного класса.
+        Сложение товаров одного класса.
         Возвращает сумму произведений цены на количество.
         Если типы не совпадают, выбрасывается TypeError.
         """
@@ -115,6 +153,22 @@ class LawnGrass(Product):
         self.color = color
 
 
+class ProductsWrapper(str):
+    """
+    Обёртка для строкового представления списка товаров.
+    Позволяет использовать len() для получения количества товаров,
+    сохраняя поведение строки при печати.
+    """
+
+    def __new__(cls, products_list: List[Product], formatted_string: str):
+        obj = super().__new__(cls, formatted_string)
+        obj._products_list = products_list
+        return obj
+
+    def __len__(self) -> int:
+        return len(self._products_list)
+
+
 class Category:
     """Класс для представления категории товаров."""
 
@@ -134,18 +188,22 @@ class Category:
         Category.product_count += len(products)
 
     def add_product(self, product: Product) -> None:
-        """Добавляет продукт в категорию. Разрешены только экземпляры Product и его наследников."""
+        """Добавляет продукт в категорию. Только экземпляры Product."""
         if not isinstance(product, Product):
             raise TypeError(
-                "В категорию можно добавлять только продукты (Product или его наследники)"
+                "В категорию можно добавлять только продукты "
+                "(Product или его наследники)"
             )
         self.__products.append(product)
         Category.product_count += 1
 
     @property
-    def products(self) -> str:
-        """Геттер, возвращающий строковое представление списка товаров."""
-        result = ""
+    def products(self) -> ProductsWrapper:
+        """Возвращает строку-обёртку со списком товаров."""
+        formatted = ""
         for product in self.__products:
-            result += f"{product.name}, {product.price} руб. Остаток: {product.quantity} шт.\n"
-        return result
+            formatted += (
+                f"{product.name}, {product.price} руб. "
+                f"Остаток: {product.quantity} шт.\n"
+            )
+        return ProductsWrapper(self.__products, formatted)
