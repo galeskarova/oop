@@ -18,29 +18,24 @@ def sample_products():
     ]
 
 
-# ---------- Тесты абстрактного класса и миксина ----------
 def test_base_product_is_abstract():
-    """Нельзя создать экземпляр BaseProduct напрямую."""
     with pytest.raises(TypeError):
-        BaseProduct()  # type: ignore
+        BaseProduct()
 
 
 def test_object_creation_mixin_output(capsys):
-    """При создании продукта выводится сообщение от миксина."""
     Product("Test", "Desc", 10.0, 1)
     captured = capsys.readouterr()
     assert "Создан объект класса Product" in captured.out
-    assert "'Test'" in captured.out  # параметры
+    assert "'Test'" in captured.out
 
 
 def test_smartphone_creation_mixin_output(capsys):
-    """При создании смартфона также срабатывает миксин."""
     Smartphone("S", "D", 1000.0, 2, 0.9, "M", 64, "Black")
     captured = capsys.readouterr()
     assert "Создан объект класса Smartphone" in captured.out
 
 
-# ---------- Тесты Product (существующие) ----------
 class TestProduct:
 
     def test_product_initialization(self):
@@ -48,6 +43,12 @@ class TestProduct:
         assert p.name == "Тест"
         assert p.price == 50.5
         assert p.quantity == 2
+
+    def test_product_zero_quantity_raises_valueerror(self):
+        with pytest.raises(
+            ValueError, match="Товар с нулевым количеством не может быть добавлен"
+        ):
+            Product("Брак", "Описание", 100.0, 0)
 
     def test_get_info(self):
         p = Product("A", "B", 100.0, 1)
@@ -79,9 +80,7 @@ class TestProduct:
             p + s
 
 
-# ---------- Тесты наследников ----------
 class TestSmartphone:
-
     def test_inheritance(self):
         s = Smartphone("S", "D", 100.0, 1, 0.8, "X", 32, "Red")
         assert isinstance(s, Product)
@@ -96,7 +95,6 @@ class TestSmartphone:
 
 
 class TestLawnGrass:
-
     def test_inheritance(self):
         g = LawnGrass("G", "D", 50.0, 5, "Россия", "7 дней", "Зелёный")
         assert isinstance(g, Product)
@@ -109,7 +107,6 @@ class TestLawnGrass:
         assert g.color == "Зелёный"
 
 
-# ---------- Тесты Category (с ProductsWrapper) ----------
 class TestCategory:
 
     def test_len_of_products(self, sample_products):
@@ -137,3 +134,17 @@ class TestCategory:
         assert Category.category_count == 0
         Category("К1", "", sample_products)
         assert Category.category_count == 1
+
+
+    def test_middle_price_with_products(self, sample_products):
+        cat = Category("Кат", "Описание", sample_products)
+        assert cat.middle_price() == 150.0
+
+    def test_middle_price_single_product(self):
+        p = Product("Один", "", 42.0, 1)
+        cat = Category("Кат", "", [p])
+        assert cat.middle_price() == 42.0
+
+    def test_middle_price_empty_category(self):
+        cat = Category("Пустая", "Без товаров", [])
+        assert cat.middle_price() == 0

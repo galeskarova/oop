@@ -6,7 +6,6 @@ class BaseProduct(ABC):
     """Абстрактный базовый класс для всех продуктов."""
 
     def __init__(self, *args, **kwargs) -> None:
-        """Принимает любые аргументы и завершает цепочку инициализации."""
         super().__init__()
 
     @abstractmethod
@@ -19,11 +18,9 @@ class ObjectCreationMixin:
     """Миксин, выводящий информацию о создании объекта."""
 
     def __init__(self, *args, **kwargs) -> None:
-        # Сохраняем параметры для последующей печати
         self._creation_args = args
         self._creation_kwargs = kwargs
         super().__init__(*args, **kwargs)
-        # Печатаем информацию о созданном объекте
         print(
             f"Создан объект класса {self.__class__.__name__} "
             f"с параметрами: {args}, {kwargs}"
@@ -41,12 +38,15 @@ class Product(ObjectCreationMixin, BaseProduct):
     def __init__(
         self, name: str, description: str, price: float, quantity: int
     ) -> None:
-        # Вызов цепочки конструкторов через super (попадаем в миксин)
         super().__init__(name, description, price, quantity)
         self.name = name
         self.description = description
         self.__price = price
         self.quantity = quantity
+
+        # Проверка на нулевое количество
+        if self.quantity <= 0:
+            raise ValueError("Товар с нулевым количеством не может быть добавлен")
 
     @property
     def price(self) -> float:
@@ -82,11 +82,7 @@ class Product(ObjectCreationMixin, BaseProduct):
         product_data: Dict[str, Union[str, float, int]],
         existing_products: List["Product"] = None,
     ) -> "Product":
-        """
-        Класс-метод для создания продукта из словаря.
-        При наличии дубликата по имени увеличивает количество и
-        выбирает максимальную цену.
-        """
+        """..."""
         name = product_data["name"]
         description = product_data.get("description", "")
         price = float(product_data["price"])
@@ -103,11 +99,6 @@ class Product(ObjectCreationMixin, BaseProduct):
         return cls(name, description, price, quantity)
 
     def __add__(self, other: "Product") -> float:
-        """
-        Сложение товаров одного класса.
-        Возвращает сумму произведений цены на количество.
-        Если типы не совпадают, выбрасывается TypeError.
-        """
         if type(self) is not type(other):
             raise TypeError("Нельзя складывать товары разных классов")
         return self.price * self.quantity + other.price * other.quantity
@@ -154,11 +145,7 @@ class LawnGrass(Product):
 
 
 class ProductsWrapper(str):
-    """
-    Обёртка для строкового представления списка товаров.
-    Позволяет использовать len() для получения количества товаров,
-    сохраняя поведение строки при печати.
-    """
+    """Обёртка для строкового представления списка товаров с поддержкой len."""
 
     def __new__(cls, products_list: List[Product], formatted_string: str):
         obj = super().__new__(cls, formatted_string)
@@ -207,3 +194,12 @@ class Category:
                 f"Остаток: {product.quantity} шт.\n"
             )
         return ProductsWrapper(self.__products, formatted)
+
+    def middle_price(self) -> float:
+        """Подсчитывает средний ценник всех товаров.
+        Если товаров нет, возвращает 0."""
+        try:
+            total = sum(product.price for product in self.__products)
+            return total / len(self.__products)
+        except ZeroDivisionError:
+            return 0
